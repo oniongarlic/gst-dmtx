@@ -60,6 +60,8 @@ enum
   PROP_SILENT,
   PROP_BOX,
   PROP_SCALE,
+  PROP_STOP_AFTER,
+  PROP_TIMEOUT,
 };
 
 /* the capabilities of the inputs and outputs.
@@ -134,6 +136,14 @@ gst_dmtx_class_init (GstdmtxClass * klass)
     g_param_spec_int ("scale", "Scaling", "Scale input for faster operation",
           1, 4, 1, G_PARAM_READWRITE));
 
+  g_object_class_install_property (gobject_class, PROP_TIMEOUT,
+    g_param_spec_int ("timeout", "Timeout", "Try this long to find a code in a frame",
+          10, 5000, 100, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_STOP_AFTER,
+    g_param_spec_int ("stop_after", "Stop after", "Send EOS after this many matches, set to 0 to keep going",
+          0, 500, 0, G_PARAM_READWRITE));
+
   GST_BASE_TRANSFORM_CLASS (klass)->set_caps = GST_DEBUG_FUNCPTR (gst_dmtx_set_caps);
   GST_BASE_TRANSFORM_CLASS (klass)->transform_ip = GST_DEBUG_FUNCPTR (gst_dmtx_transform_ip);
 }
@@ -176,6 +186,9 @@ gst_dmtx_init (Gstdmtx *filter, GstdmtxClass * klass)
   filter->width=0;
   filter->height=0;
   filter->scale=1;
+  filter->timeout=100;
+  filter->stop_after=0;
+  filter->found_count=0;
 }
 
 static void
@@ -193,6 +206,12 @@ gst_dmtx_set_property (GObject * object, guint prop_id,
     break;
     case PROP_SCALE:
       filter->scale = g_value_get_int (value);
+    break;
+    case PROP_TIMEOUT:
+      filter->timeout = g_value_get_int (value);
+    break;
+    case PROP_STOP_AFTER:
+      filter->stop_after = g_value_get_int (value);
     break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -215,6 +234,12 @@ gst_dmtx_get_property (GObject * object, guint prop_id,
     break;
     case PROP_SCALE:
       g_value_set_int (value, filter->scale);
+    break;
+    case PROP_TIMEOUT:
+      g_value_set_int (value, filter->timeout);
+    break;
+    case PROP_STOP_AFTER:
+      g_value_set_int (value, filter->stop_after);
     break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -260,8 +285,12 @@ gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
   }
   
   /* Find and decode barcodes from video frame */
-  g_debug("Creating filter");
-  dmtxTimeAdd(dmtxTimeNow(), 100);
+  g_debug("Creating filter: %d %d", filter->timeout, filter->scale);
+  if (filter->timeout>0)
+	dmtxTimeAdd(dmtxTimeNow(), filter->timeout);
+  else
+	dmtxTimeAdd(dmtxTimeNow(), 100);
+
   filter->dimg = dmtxImageCreate(GST_BUFFER_DATA(outbuf), filter->width, filter->height, dpo);
   filter->ddec = dmtxDecodeCreate(filter->dimg, filter->scale);
   filter->dreg = dmtxRegionFindNext(filter->ddec, NULL);
@@ -273,8 +302,14 @@ gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
 		g_debug("Found:");
 		fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
 		dmtxMessageDestroy(&msg);
+		filter->found_count++;
 		if (filter->draw_box)
 			gst_dmtx_buffer_draw_box(outbuf);
+		if (filter->stop_after>0) {
+			if (filter->found_count>filter->stop_after) {
+			  gst_pad_push_event(base->srcpad, gst_event_new_eos());
+			}
+		}
 	}
 	dmtxRegionDestroy(&filter->dreg);
   } else {

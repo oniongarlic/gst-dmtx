@@ -49,6 +49,9 @@ struct _Gstdmtx {
   gboolean silent;
   gboolean draw_box;
   gint scale;
+  gint stop_after;
+  gint timeout;
+  gint found_count;
 
   /* Private */
   DmtxDecode  *ddec;
