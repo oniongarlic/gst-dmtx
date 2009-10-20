@@ -47,6 +47,8 @@ struct _Gstdmtx {
   GstBaseTransform element;
 
   gboolean silent;
+  gboolean draw_box;
+  gint scale;
 
   /* Private */
   DmtxDecode  *ddec;

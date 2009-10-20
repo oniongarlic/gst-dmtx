@@ -39,7 +39,6 @@
 #include <gst/gst.h>
 #include <gst/base/gstbasetransform.h>
 #include <gst/video/video.h>
-#include <gst/controller/gstcontroller.h>
 
 #include <dmtx.h>
 
@@ -59,18 +58,20 @@ enum
 {
   PROP_0,
   PROP_SILENT,
+  PROP_BOX,
+  PROP_SCALE,
 };
 
 /* the capabilities of the inputs and outputs.
  *
- * FIXME:describe the real formats here.
+ * RGB only for now.
  */
 static GstStaticPadTemplate sink_template =
 GST_STATIC_PAD_TEMPLATE (
   "sink",
   GST_PAD_SINK,
   GST_PAD_ALWAYS,
-  GST_STATIC_CAPS (GST_VIDEO_CAPS_RGBA ";" GST_VIDEO_CAPS_RGB)
+  GST_STATIC_CAPS (GST_VIDEO_CAPS_RGB ";" GST_VIDEO_CAPS_RGBA)
 );
 
 static GstStaticPadTemplate src_template =
@@ -78,26 +79,21 @@ GST_STATIC_PAD_TEMPLATE (
   "src",
   GST_PAD_SRC,
   GST_PAD_ALWAYS,
-  GST_STATIC_CAPS ("ANY")
+  GST_STATIC_CAPS (GST_VIDEO_CAPS_RGB ";" GST_VIDEO_CAPS_RGBA)
 );
 
 /* debug category for fltering log messages
  *
- * FIXME:exchange the string 'Template dmtx' with your description
  */
 #define DEBUG_INIT(bla) \
-  GST_DEBUG_CATEGORY_INIT (gst_dmtx_debug, "dmtx", 0, "dmtx");
+    GST_DEBUG_CATEGORY_INIT (gst_dmtx_debug, "dmtx", 0, "dmtx");
 
-GST_BOILERPLATE_FULL (Gstdmtx, gst_dmtx, GstBaseTransform,
-    GST_TYPE_BASE_TRANSFORM, DEBUG_INIT);
+GST_BOILERPLATE_FULL (Gstdmtx, gst_dmtx, GstBaseTransform, GST_TYPE_BASE_TRANSFORM, DEBUG_INIT);
 
-static void gst_dmtx_set_property (GObject * object, guint prop_id,
-    const GValue * value, GParamSpec * pspec);
-static void gst_dmtx_get_property (GObject * object, guint prop_id,
-    GValue * value, GParamSpec * pspec);
-
-static GstFlowReturn gst_dmtx_transform_ip (GstBaseTransform * base,
-    GstBuffer * outbuf);
+static void gst_dmtx_set_property (GObject * object, guint prop_id, const GValue * value, GParamSpec * pspec);
+static void gst_dmtx_get_property (GObject * object, guint prop_id, GValue * value, GParamSpec * pspec);
+static gboolean gst_dmtx_set_caps (GstBaseTransform * btrans, GstCaps * incaps, GstCaps * outcaps);
+static GstFlowReturn gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf);
 
 /* GObject vmethod implementations */
 
@@ -112,10 +108,8 @@ gst_dmtx_base_init (gpointer klass)
     "Barcode filter using libdmtx",
     " <milang@tal.org>");
 
-  gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&src_template));
-  gst_element_class_add_pad_template (element_class,
-      gst_static_pad_template_get (&sink_template));
+  gst_element_class_add_pad_template (element_class, gst_static_pad_template_get (&src_template));
+  gst_element_class_add_pad_template (element_class, gst_static_pad_template_get (&sink_template));
 }
 
 /* initialize the dmtx's class */
@@ -130,10 +124,46 @@ gst_dmtx_class_init (GstdmtxClass * klass)
 
   g_object_class_install_property (gobject_class, PROP_SILENT,
     g_param_spec_boolean ("silent", "Silent", "Produce verbose output ?",
-          FALSE, G_PARAM_READWRITE | GST_PARAM_CONTROLLABLE));
+          FALSE, G_PARAM_READWRITE));
 
-  GST_BASE_TRANSFORM_CLASS (klass)->transform_ip =
-      GST_DEBUG_FUNCPTR (gst_dmtx_transform_ip);
+  g_object_class_install_property (gobject_class, PROP_BOX,
+    g_param_spec_boolean ("box", "Box", "Draw a box around found barcode",
+          FALSE, G_PARAM_READWRITE));
+
+  g_object_class_install_property (gobject_class, PROP_SCALE,
+    g_param_spec_int ("scale", "Scaling", "Scale input for faster operation",
+          1, 4, 1, G_PARAM_READWRITE));
+
+  GST_BASE_TRANSFORM_CLASS (klass)->set_caps = GST_DEBUG_FUNCPTR (gst_dmtx_set_caps);
+  GST_BASE_TRANSFORM_CLASS (klass)->transform_ip = GST_DEBUG_FUNCPTR (gst_dmtx_transform_ip);
+}
+
+static gboolean
+gst_dmtx_set_caps (GstBaseTransform * btrans, GstCaps * incaps, GstCaps * outcaps)
+{
+  Gstdmtx *filter;
+  GstStructure *structure;
+  gboolean ret;
+  gint w, h, depth, bpp;
+
+  filter = GST_DMTX (btrans);
+  structure = gst_caps_get_structure (incaps, 0);
+
+  ret = gst_structure_get_int (structure, "width", &w);
+  ret &= gst_structure_get_int (structure, "height", &h);
+  ret &= gst_structure_get_int (structure, "depth", &depth);
+  ret &= gst_structure_get_int (structure, "bpp", &bpp);
+
+  if (!ret)
+	return FALSE;
+
+  g_debug("Got caps");
+
+  filter->width=w;
+  filter->height=h;
+  filter->bpp=bpp;
+
+  return TRUE;
 }
 
 /* initialize the new element
@@ -143,6 +173,9 @@ static void
 gst_dmtx_init (Gstdmtx *filter, GstdmtxClass * klass)
 {
   filter->silent = FALSE;
+  filter->width=0;
+  filter->height=0;
+  filter->scale=1;
 }
 
 static void
@@ -152,12 +185,18 @@ gst_dmtx_set_property (GObject * object, guint prop_id,
   Gstdmtx *filter = GST_DMTX (object);
 
   switch (prop_id) {
+    case PROP_BOX:
+      filter->draw_box = g_value_get_boolean (value);
+    break;
     case PROP_SILENT:
       filter->silent = g_value_get_boolean (value);
-      break;
+    break;
+    case PROP_SCALE:
+      filter->scale = g_value_get_int (value);
+    break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-      break;
+    break;
   }
 }
 
@@ -168,13 +207,25 @@ gst_dmtx_get_property (GObject * object, guint prop_id,
   Gstdmtx *filter = GST_DMTX (object);
 
   switch (prop_id) {
+    case PROP_BOX:
+      g_value_set_boolean (value, filter->draw_box);
+    break;
     case PROP_SILENT:
       g_value_set_boolean (value, filter->silent);
-      break;
+    break;
+    case PROP_SCALE:
+      g_value_set_int (value, filter->scale);
+    break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-      break;
+    break;
   }
+}
+
+static void
+gst_dmtx_buffer_draw_box(GstBuffer *buf)
+{
+/* XXX: Write this */
 }
 
 /* GstBaseTransform vmethod implementations */
@@ -185,28 +236,49 @@ static GstFlowReturn
 gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
 {
   Gstdmtx *filter = GST_DMTX (base);
-  guint width, height;
+  DmtxPackOrder dpo;
 
-  if (GST_CLOCK_TIME_IS_VALID (GST_BUFFER_TIMESTAMP (outbuf)))
-    gst_object_sync_values (G_OBJECT (filter), GST_BUFFER_TIMESTAMP (outbuf));
+  g_debug("Transforming: %d %dx%d", filter->bpp, filter->width, filter->height);
 
-  if (filter->silent == FALSE)
-    g_print ("I'm plugged, therefore I'm in.\n");
+  switch (filter->bpp) {
+  case 8:
+	dpo=DmtxPack8bppK;
+  break;
+  case 16:
+	dpo=DmtxPack16bppRGB;
+  break;
+  case 24:
+	dpo=DmtxPack24bppRGB;
+  break;
+  case 32:
+	dpo=DmtxPack32bppRGBX;
+  break;
+  default:
+	g_warning("Invalid bpp: %d", filter->bpp);
+	return GST_FLOW_UNEXPECTED;
+  break;
+  }
   
   /* Find and decode barcodes from video frame */
-  filter->dimg = dmtxImageCreate(GST_BUFFER_DATA(outbuf), width, height, DmtxPack24bppRGB);
-  filter->ddec = dmtxDecodeCreate(filter->dimg, 1);
+  g_debug("Creating filter");
+  dmtxTimeAdd(dmtxTimeNow(), 100);
+  filter->dimg = dmtxImageCreate(GST_BUFFER_DATA(outbuf), filter->width, filter->height, dpo);
+  filter->ddec = dmtxDecodeCreate(filter->dimg, filter->scale);
   filter->dreg = dmtxRegionFindNext(filter->ddec, NULL);
   if(filter->dreg != NULL) {
 	DmtxMessage *msg;
+
 	msg = dmtxDecodeMatrixRegion(filter->ddec, filter->dreg, DmtxUndefined);
 	if(msg != NULL) {
-		fputs("output: \"", stdout);
+		g_debug("Found:");
 		fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
-		fputs("\"\n", stdout);
 		dmtxMessageDestroy(&msg);
+		if (filter->draw_box)
+			gst_dmtx_buffer_draw_box(outbuf);
 	}
 	dmtxRegionDestroy(&filter->dreg);
+  } else {
+	g_debug("Nothing found");
   }
 
   dmtxDecodeDestroy(&filter->ddec);
@@ -223,11 +295,7 @@ gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
 static gboolean
 dmtx_init (GstPlugin * dmtx)
 {
-  /* initialize gst controller library */
-  gst_controller_init(NULL, NULL);
-
-  return gst_element_register (dmtx, "dmtx", GST_RANK_NONE,
-      GST_TYPE_DMTX);
+  return gst_element_register (dmtx, "dmtx", GST_RANK_NONE, GST_TYPE_DMTX);
 }
 
 /* gstreamer looks for this structure to register dmtxs
