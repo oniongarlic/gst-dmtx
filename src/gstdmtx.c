@@ -305,11 +305,8 @@ gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
 		filter->found_count++;
 		if (filter->draw_box)
 			gst_dmtx_buffer_draw_box(outbuf);
-		if (filter->stop_after>0) {
-			if (filter->found_count>filter->stop_after) {
-			  gst_pad_push_event(base->srcpad, gst_event_new_eos());
-			}
-		}
+		if (filter->stop_after>0 && filter->found_count>=filter->stop_after)
+			gst_pad_push_event(base->srcpad, gst_event_new_eos());
 	}
 	dmtxRegionDestroy(&filter->dreg);
   } else {
