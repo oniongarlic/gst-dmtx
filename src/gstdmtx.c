@@ -318,7 +318,7 @@ gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
 		m=gst_dmtx_message_new(filter, msg);
 		filter->found_count++;
 		if (filter->draw_box)
-			gst_dmtx_buffer_draw_box(outbuf);
+			gst_dmtx_buffer_draw_box(outbuf, filter);
 		gst_element_post_message (GST_ELEMENT (filter), m);
 		if (filter->stop_after>0 && filter->found_count>=filter->stop_after)
 			gst_pad_push_event(base->srcpad, gst_event_new_eos());
