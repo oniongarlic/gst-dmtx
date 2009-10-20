@@ -22,7 +22,7 @@
 /**
  * SECTION:element-dmtx
  *
- * Dmtx scan image buffers for barcodes, and sends a signal if one is found.
+ * Dmtx scan image buffers for barcodes, and sends a message if one is found.
  *
  * <refsect2>
  * <title>Example launch line</title>
@@ -247,6 +247,18 @@ gst_dmtx_get_property (GObject * object, guint prop_id,
   }
 }
 
+static GstMessage *
+gst_dmtx_message_new (Gstdmtx * dmtx, DmtxMessage *msg)
+{
+GstStructure *s;
+GString *tmp;
+
+tmp=g_string_new_len(msg->output, msg->outputIdx);
+s=gst_structure_new ("barcode",
+	"message", G_TYPE_STRING, tmp->str, NULL);
+return gst_message_new_element (GST_OBJECT(dmtx), s);;
+}
+
 static void
 gst_dmtx_buffer_draw_box(GstBuffer *buf)
 {
@@ -296,17 +308,20 @@ gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
   filter->dreg = dmtxRegionFindNext(filter->ddec, NULL);
   if(filter->dreg != NULL) {
 	DmtxMessage *msg;
+	GstMessage *m;
 
 	msg = dmtxDecodeMatrixRegion(filter->ddec, filter->dreg, DmtxUndefined);
 	if(msg != NULL) {
-		g_debug("Found:");
+		g_debug("Found: %d", msg->outputIdx);
 		fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
-		dmtxMessageDestroy(&msg);
+		m=gst_dmtx_message_new(filter, msg);
 		filter->found_count++;
 		if (filter->draw_box)
 			gst_dmtx_buffer_draw_box(outbuf);
+		gst_element_post_message (GST_ELEMENT (filter), m);
 		if (filter->stop_after>0 && filter->found_count>=filter->stop_after)
 			gst_pad_push_event(base->srcpad, gst_event_new_eos());
+		dmtxMessageDestroy(&msg);
 	}
 	dmtxRegionDestroy(&filter->dreg);
   } else {
