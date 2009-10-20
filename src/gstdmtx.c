@@ -22,7 +22,7 @@
 /**
  * SECTION:element-dmtx
  *
- * Dmtx scan image buffers for barcodes, and sends a message if one is found.
+ * Dmtx scans image buffers for data matrix barcodes, and sends a message if one is found.
  *
  * <refsect2>
  * <title>Example launch line</title>
@@ -254,13 +254,14 @@ GstStructure *s;
 GString *tmp;
 
 tmp=g_string_new_len(msg->output, msg->outputIdx);
-s=gst_structure_new ("barcode",
-	"message", G_TYPE_STRING, tmp->str, NULL);
+s=gst_structure_new ("barcode", 
+	"message", G_TYPE_STRING, g_string_free(tmp, FALSE), 
+	NULL);
 return gst_message_new_element (GST_OBJECT(dmtx), s);;
 }
 
 static void
-gst_dmtx_buffer_draw_box(GstBuffer *buf)
+gst_dmtx_buffer_draw_box(GstBuffer *buf, Gstdmtx *filter)
 {
 /* XXX: Write this */
 }
@@ -347,13 +348,12 @@ dmtx_init (GstPlugin * dmtx)
 
 /* gstreamer looks for this structure to register dmtxs
  *
- * FIXME:exchange the string 'Template dmtx' with you dmtx description
  */
 GST_PLUGIN_DEFINE (
     GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
     "dmtx",
-    "Template dmtx",
+    "Data Matrix barcodes decoder element",
     dmtx_init,
     VERSION,
     "LGPL",
