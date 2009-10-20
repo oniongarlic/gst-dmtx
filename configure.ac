@@ -114,6 +114,9 @@ dnl make _CFLAGS and _LIBS available
 AC_SUBST(GSTCTRL_CFLAGS)
 AC_SUBST(GSTCTRL_LIBS)
 
+AC_CHECK_HEADERS([dmtx.h])
+AC_CHECK_LIB(dmtx,dmtxImageCreate,,)
+
 dnl set the plugindir where plugins should be installed
 if test "x${prefix}" = "x$HOME"; then
   plugindir="$HOME/.gstreamer-$GST_MAJORMINOR/plugins"
