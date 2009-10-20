@@ -104,18 +104,11 @@ PKG_CHECK_MODULES(GSTCTRL,
                   gstreamer-controller-$GST_MAJORMINOR >= $GSTPB_REQUIRED,
                   HAVE_GSTCTRL=yes, HAVE_GSTCTRL=no)
 
-dnl Give a warning if we don't have gstreamer-controller
-dnl you can turn this into an error if you need them
-if test "x$HAVE_GSTCTRL" = "xno"; then
-  AC_MSG_NOTICE(no GStreamer Controller libraries found (gstreamer-controller-$GST_MAJORMINOR))
-fi
-
 dnl make _CFLAGS and _LIBS available
-AC_SUBST(GSTCTRL_CFLAGS)
-AC_SUBST(GSTCTRL_LIBS)
 
-AC_CHECK_HEADERS([dmtx.h])
-AC_CHECK_LIB(dmtx,dmtxImageCreate,,)
+PKG_CHECK_MODULES(DMTX, libdmtx)
+AC_SUBST(DMTX_CFLAGS)
+AC_SUBST(DMTX_LIBS)
 
 dnl set the plugindir where plugins should be installed
 if test "x${prefix}" = "x$HOME"; then
