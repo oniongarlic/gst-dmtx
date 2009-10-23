@@ -50,7 +50,6 @@ GST_DEBUG_CATEGORY_STATIC (gst_dmtx_debug);
 /* Filter signals and args */
 enum
 {
-  GOT_BARCODE,
   LAST_SIGNAL
 };
 
