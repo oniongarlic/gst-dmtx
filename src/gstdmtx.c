@@ -24,10 +24,36 @@
  *
  * Dmtx scans image buffers for data matrix barcodes, and sends a message if one is found.
  *
+ * The element generate messages named
+ * <classname>&quot;barcode&quot;</classname>. The structure containes these
+ * fields:
+ * <itemizedlist>
+ * <listitem>
+ *   <para>
+ *   #GstClockTime
+ *   <classname>&quot;timestamp&quot;</classname>:
+ *   the timestamp of the buffer that triggered the message.
+ *   </para>
+ * </listitem>
+ * <listitem>
+ *   <para>
+ *   gchar*
+ *   <classname>&quot;type&quot;</classname>:
+ *   the symbol type.
+ *   </para>
+ * </listitem>
+ * <listitem>
+ *   <para>
+ *   gchar*
+ *   <classname>&quot;symbol&quot;</classname>:
+ *   the deteted bar code data.
+ *   </para>
+ * </listitem>
+ * </itemizedlist>
  * <refsect2>
  * <title>Example launch line</title>
  * |[
- * gst-launch -v -m fakesrc ! dmtx ! fakesink silent=TRUE
+ * gst-launch -m v4l2src ! ffmpegcolorspace ! dmtx ! fakesink silent=TRUE
  * ]|
  * </refsect2>
  */
@@ -246,15 +272,17 @@ gst_dmtx_get_property (GObject * object, guint prop_id,
   }
 }
 
-static GstMessage *
-gst_dmtx_message_new (Gstdmtx * dmtx, DmtxMessage *msg)
+inline GstMessage *
+gst_dmtx_message_new (Gstdmtx *dmtx, DmtxMessage *msg, GstBuffer *outbuf)
 {
 GstStructure *s;
 GString *tmp;
 
-tmp=g_string_new_len(msg->output, msg->outputIdx);
+tmp=g_string_new_len(msg->output, msg->outputSize);
 s=gst_structure_new ("barcode", 
-	"message", G_TYPE_STRING, g_string_free(tmp, FALSE), 
+	"timestamp", G_TYPE_UINT64, GST_BUFFER_TIMESTAMP (outbuf),
+	"type", G_TYPE_STRING, "datamatrix",
+	"symbol", G_TYPE_STRING, g_string_free(tmp, FALSE), 
 	NULL);
 return gst_message_new_element (GST_OBJECT(dmtx), s);;
 }
@@ -312,9 +340,9 @@ gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
 
 	msg = dmtxDecodeMatrixRegion(filter->ddec, filter->dreg, DmtxUndefined);
 	if(msg != NULL) {
-		g_debug("Found: %d", msg->outputIdx);
+		g_debug("Found: %d", msg->outputSize);
 		fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
-		m=gst_dmtx_message_new(filter, msg);
+		m=gst_dmtx_message_new(filter, msg, outbuf);
 		filter->found_count++;
 		if (filter->draw_box)
 			gst_dmtx_buffer_draw_box(outbuf, filter);
