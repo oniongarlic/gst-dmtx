@@ -46,14 +46,16 @@ typedef struct _GstdmtxClass GstdmtxClass;
 struct _Gstdmtx {
   GstBaseTransform element;
 
+  /* Private */
   gboolean silent;
-  gboolean draw_box;
+  gboolean skip_dups;
   gint scale;
   gint stop_after;
   gint timeout;
   gint found_count;
+  gint skip;
+  gchar *last;
 
-  /* Private */
   DmtxDecode  *ddec;
   DmtxImage   *dimg;
   DmtxRegion  *dreg;
