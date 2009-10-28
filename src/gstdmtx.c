@@ -92,14 +92,18 @@ enum
 
 /* the capabilities of the inputs and outputs.
  *
- * RGB only for now.
  */
 static GstStaticPadTemplate sink_template =
 GST_STATIC_PAD_TEMPLATE (
   "sink",
   GST_PAD_SINK,
   GST_PAD_ALWAYS,
-  GST_STATIC_CAPS (GST_VIDEO_CAPS_RGB ";" GST_VIDEO_CAPS_RGBA)
+  GST_STATIC_CAPS (GST_VIDEO_CAPS_RGB ";" GST_VIDEO_CAPS_RGBA ";" GST_VIDEO_CAPS_RGB_16 ";"
+      "video/x-raw-gray, "
+      "bpp = 8, "
+      "depth = 8, "
+      "width = " GST_VIDEO_SIZE_RANGE ", "
+      "height = " GST_VIDEO_SIZE_RANGE ", " "framerate = " GST_VIDEO_FPS_RANGE)
 );
 
 static GstStaticPadTemplate src_template =
@@ -107,7 +111,12 @@ GST_STATIC_PAD_TEMPLATE (
   "src",
   GST_PAD_SRC,
   GST_PAD_ALWAYS,
-  GST_STATIC_CAPS (GST_VIDEO_CAPS_RGB ";" GST_VIDEO_CAPS_RGBA)
+  GST_STATIC_CAPS (GST_VIDEO_CAPS_RGB ";" GST_VIDEO_CAPS_RGBA ";" GST_VIDEO_CAPS_RGB_16 ";"
+      "video/x-raw-gray, "
+      "bpp = 8, "
+      "depth = 8, "
+      "width = " GST_VIDEO_SIZE_RANGE ", "
+      "height = " GST_VIDEO_SIZE_RANGE ", " "framerate = " GST_VIDEO_FPS_RANGE)
 );
 
 /* debug category for fltering log messages
@@ -122,6 +131,8 @@ static void gst_dmtx_set_property (GObject * object, guint prop_id, const GValue
 static void gst_dmtx_get_property (GObject * object, guint prop_id, GValue * value, GParamSpec * pspec);
 static gboolean gst_dmtx_set_caps (GstBaseTransform * btrans, GstCaps * incaps, GstCaps * outcaps);
 static GstFlowReturn gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf);
+static gboolean gst_dmtx_start (GstBaseTransform * base);
+static gboolean gst_dmtx_stop (GstBaseTransform * base);
 
 /* GObject vmethod implementations */
 
@@ -176,6 +187,8 @@ gst_dmtx_class_init (GstdmtxClass * klass)
 
   GST_BASE_TRANSFORM_CLASS (klass)->set_caps = GST_DEBUG_FUNCPTR (gst_dmtx_set_caps);
   GST_BASE_TRANSFORM_CLASS (klass)->transform_ip = GST_DEBUG_FUNCPTR (gst_dmtx_transform_ip);
+  GST_BASE_TRANSFORM_CLASS (klass)->start = GST_DEBUG_FUNCPTR (gst_dmtx_start);
+  GST_BASE_TRANSFORM_CLASS (klass)->stop = GST_DEBUG_FUNCPTR (gst_dmtx_stop);
 }
 
 static gboolean
@@ -201,6 +214,26 @@ gst_dmtx_set_caps (GstBaseTransform * btrans, GstCaps * incaps, GstCaps * outcap
   filter->height=h;
   filter->bpp=bpp;
 
+  switch (filter->bpp) {
+  case 8:
+	filter->dpo=DmtxPack8bppK;
+  break;
+  case 16:
+	filter->dpo=DmtxPack16bppRGB;
+  break;
+  case 24:
+	filter->dpo=DmtxPack24bppRGB;
+  break;
+  case 32:
+	filter->dpo=DmtxPack32bppRGBX;
+  break;
+  default:
+	return FALSE;
+  break;
+  }
+
+  g_debug("BPP: %d", filter->bpp);
+
   return TRUE;
 }
 
@@ -219,6 +252,24 @@ gst_dmtx_init (Gstdmtx *filter, GstdmtxClass * klass)
   filter->found_count=0;
   filter->skip=15;
   filter->last=NULL;
+}
+
+static gboolean gst_dmtx_start (GstBaseTransform *base)
+{
+Gstdmtx *filter = GST_DMTX(base);
+
+g_debug("START");
+
+return TRUE;
+}
+
+static gboolean gst_dmtx_stop (GstBaseTransform *base)
+{
+Gstdmtx *filter = GST_DMTX(base);
+
+g_debug("STOP");
+
+return TRUE;
 }
 
 static void
@@ -309,29 +360,9 @@ static GstFlowReturn
 gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
 {
   Gstdmtx *filter = GST_DMTX (base);
-  DmtxPackOrder dpo;
 
   if (filter->skip>0 && (outbuf->offset % filter->skip)!=0)
 	return GST_FLOW_OK;
-
-  switch (filter->bpp) {
-  case 8:
-	dpo=DmtxPack8bppK;
-  break;
-  case 16:
-	dpo=DmtxPack16bppRGB;
-  break;
-  case 24:
-	dpo=DmtxPack24bppRGB;
-  break;
-  case 32:
-	dpo=DmtxPack32bppRGBX;
-  break;
-  default:
-	g_warning("Invalid bpp: %d", filter->bpp);
-	return GST_FLOW_UNEXPECTED;
-  break;
-  }
   
   /* Find and decode barcodes from video frame */
   if (filter->timeout>0)
@@ -339,7 +370,7 @@ gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
   else
 	dmtxTimeAdd(dmtxTimeNow(), 100);
 
-  filter->dimg = dmtxImageCreate(GST_BUFFER_DATA(outbuf), filter->width, filter->height, dpo);
+  filter->dimg = dmtxImageCreate(GST_BUFFER_DATA(outbuf), filter->width, filter->height, filter->dpo);
   filter->ddec = dmtxDecodeCreate(filter->dimg, filter->scale);
   filter->dreg = dmtxRegionFindNext(filter->ddec, NULL);
   if(filter->dreg != NULL) {

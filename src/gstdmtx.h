@@ -59,6 +59,7 @@ struct _Gstdmtx {
   DmtxDecode  *ddec;
   DmtxImage   *dimg;
   DmtxRegion  *dreg;
+  DmtxPackOrder dpo;
   gint width, height, stride, bpp;
 };
 
