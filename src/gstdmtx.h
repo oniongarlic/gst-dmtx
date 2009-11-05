@@ -24,6 +24,7 @@
 
 #include <gst/gst.h>
 #include <gst/base/gstbasetransform.h>
+#include <gst/video/gstvideofilter.h>
 
 #include <dmtx.h>
 
@@ -44,7 +45,7 @@ typedef struct _Gstdmtx      Gstdmtx;
 typedef struct _GstdmtxClass GstdmtxClass;
 
 struct _Gstdmtx {
-  GstBaseTransform element;
+  GstVideoFilter element;
 
   /* Private */
   gboolean silent;
@@ -64,7 +65,7 @@ struct _Gstdmtx {
 };
 
 struct _GstdmtxClass {
-  GstBaseTransformClass parent_class;
+  GstVideoFilterClass parent_class;
 };
 
 GType gst_dmtx_get_type (void);
