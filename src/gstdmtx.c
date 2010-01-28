@@ -76,54 +76,54 @@ GST_DEBUG_CATEGORY_STATIC (gst_dmtx_debug);
 /* Filter signals and args */
 enum
 {
-  LAST_SIGNAL
+LAST_SIGNAL
 };
 
 enum
 {
-  PROP_0,
-  PROP_SILENT,
-  PROP_SCALE,
-  PROP_STOP_AFTER,
-  PROP_TIMEOUT,
-  PROP_SKIP,
-  PROP_SKIP_DUPS,
+PROP_0,
+PROP_SILENT,
+PROP_SCALE,
+PROP_STOP_AFTER,
+PROP_TIMEOUT,
+PROP_SKIP,
+PROP_SKIP_DUPS,
 };
 
 /* the capabilities of the inputs and outputs.
  *
  */
-static GstStaticPadTemplate sink_template =
+static GstStaticPadTemplate sink_template=
 GST_STATIC_PAD_TEMPLATE (
-  "sink",
-  GST_PAD_SINK,
-  GST_PAD_ALWAYS,
-  GST_STATIC_CAPS (GST_VIDEO_CAPS_RGB ";" GST_VIDEO_CAPS_RGBA ";" GST_VIDEO_CAPS_RGB_16 ";"
-      "video/x-raw-gray, "
-      "bpp = 8, "
-      "depth = 8, "
-      "width = " GST_VIDEO_SIZE_RANGE ", "
-      "height = " GST_VIDEO_SIZE_RANGE ", " "framerate = " GST_VIDEO_FPS_RANGE)
+	"sink",
+	GST_PAD_SINK,
+	GST_PAD_ALWAYS,
+	GST_STATIC_CAPS (GST_VIDEO_CAPS_RGB ";" GST_VIDEO_CAPS_RGBA ";" GST_VIDEO_CAPS_RGB_16 ";"
+	"video/x-raw-gray, "
+	"bpp=8, "
+	"depth=8, "
+	"width=" GST_VIDEO_SIZE_RANGE ", "
+	"height=" GST_VIDEO_SIZE_RANGE ", " "framerate=" GST_VIDEO_FPS_RANGE)
 );
 
-static GstStaticPadTemplate src_template =
+static GstStaticPadTemplate src_template=
 GST_STATIC_PAD_TEMPLATE (
-  "src",
-  GST_PAD_SRC,
-  GST_PAD_ALWAYS,
-  GST_STATIC_CAPS (GST_VIDEO_CAPS_RGB ";" GST_VIDEO_CAPS_RGBA ";" GST_VIDEO_CAPS_RGB_16 ";"
-      "video/x-raw-gray, "
-      "bpp = 8, "
-      "depth = 8, "
-      "width = " GST_VIDEO_SIZE_RANGE ", "
-      "height = " GST_VIDEO_SIZE_RANGE ", " "framerate = " GST_VIDEO_FPS_RANGE)
+	"src",
+	GST_PAD_SRC,
+	GST_PAD_ALWAYS,
+	GST_STATIC_CAPS (GST_VIDEO_CAPS_RGB ";" GST_VIDEO_CAPS_RGBA ";" GST_VIDEO_CAPS_RGB_16 ";"
+	"video/x-raw-gray, "
+	"bpp=8, "
+	"depth=8, "
+	"width=" GST_VIDEO_SIZE_RANGE ", "
+	"height=" GST_VIDEO_SIZE_RANGE ", " "framerate=" GST_VIDEO_FPS_RANGE)
 );
 
 /* debug category for fltering log messages
  *
  */
 #define DEBUG_INIT(bla) \
-    GST_DEBUG_CATEGORY_INIT (gst_dmtx_debug, "dmtx", 0, "dmtx");
+	GST_DEBUG_CATEGORY_INIT (gst_dmtx_debug, "dmtx", 0, "dmtx");
 
 GST_BOILERPLATE_FULL (Gstdmtx, gst_dmtx, GstBaseTransform, GST_TYPE_BASE_TRANSFORM, DEBUG_INIT);
 
@@ -139,102 +139,92 @@ static gboolean gst_dmtx_stop (GstBaseTransform * base);
 static void
 gst_dmtx_base_init (gpointer klass)
 {
-  GstElementClass *element_class = GST_ELEMENT_CLASS (klass);
+GstElementClass *element_class=GST_ELEMENT_CLASS (klass);
 
-  gst_element_class_set_details_simple (element_class,
-    "dmtx",
-    "Barcode/Filter",
-    "Barcode filter using libdmtx",
-    " <milang@tal.org>");
+gst_element_class_set_details_simple (element_class,
+	"dmtx",
+	"Barcode/Filter",
+	"Barcode filter using libdmtx",
+	" <milang@tal.org>");
 
-  gst_element_class_add_pad_template (element_class, gst_static_pad_template_get (&src_template));
-  gst_element_class_add_pad_template (element_class, gst_static_pad_template_get (&sink_template));
+gst_element_class_add_pad_template (element_class, gst_static_pad_template_get (&src_template));
+gst_element_class_add_pad_template (element_class, gst_static_pad_template_get (&sink_template));
 }
 
 /* initialize the dmtx's class */
 static void
 gst_dmtx_class_init (GstdmtxClass * klass)
 {
-  GObjectClass *gobject_class;
+GObjectClass *gobject_class;
 
-  gobject_class = (GObjectClass *) klass;
-  gobject_class->set_property = gst_dmtx_set_property;
-  gobject_class->get_property = gst_dmtx_get_property;
+gobject_class=(GObjectClass *) klass;
+gobject_class->set_property=gst_dmtx_set_property;
+gobject_class->get_property=gst_dmtx_get_property;
 
-  g_object_class_install_property (gobject_class, PROP_SILENT,
-    g_param_spec_boolean ("silent", "Silent", "Turn of bus messages",
-          FALSE, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_SILENT,
+g_param_spec_boolean ("silent", "Silent", "Turn of bus messages", FALSE, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_SKIP_DUPS,
-    g_param_spec_boolean ("skip_dups", "Skip duplicates", "Send message for first match only",
-          FALSE, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_SKIP_DUPS,
+g_param_spec_boolean ("skip_dups", "Skip duplicates", "Send message for first match only", FALSE, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_SCALE,
-    g_param_spec_int ("scale", "Scaling", "Scale input for faster operation",
-          1, 4, 1, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_SCALE, g_param_spec_int ("scale", "Scaling", "Scale input for faster operation", 1, 4, 1, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_TIMEOUT,
-    g_param_spec_int ("timeout", "Timeout", "Try this long to find a code in a frame",
-          10, 5000, 100, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_TIMEOUT, g_param_spec_int ("timeout", "Timeout", "Try this long to find a code in a frame",        10, 5000, 100, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_STOP_AFTER,
-    g_param_spec_int ("stop_after", "Stop after", "Send EOS after this many matches, set to 0 to keep going",
-          0, 500, 0, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_STOP_AFTER, g_param_spec_int ("stop_after", "Stop after", "Send EOS after this many matches, set to 0 to keep going", 0, 500, 0, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_SKIP,
-    g_param_spec_int ("skip", "Skip frames", "Use every x frame",
-          0, 30, 15, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_SKIP, g_param_spec_int ("skip", "Skip frames", "Use every x frame", 0, 30, 15, G_PARAM_READWRITE));
 
-  GST_BASE_TRANSFORM_CLASS (klass)->set_caps = GST_DEBUG_FUNCPTR (gst_dmtx_set_caps);
-  GST_BASE_TRANSFORM_CLASS (klass)->transform_ip = GST_DEBUG_FUNCPTR (gst_dmtx_transform_ip);
-  GST_BASE_TRANSFORM_CLASS (klass)->start = GST_DEBUG_FUNCPTR (gst_dmtx_start);
-  GST_BASE_TRANSFORM_CLASS (klass)->stop = GST_DEBUG_FUNCPTR (gst_dmtx_stop);
+GST_BASE_TRANSFORM_CLASS (klass)->set_caps=GST_DEBUG_FUNCPTR (gst_dmtx_set_caps);
+GST_BASE_TRANSFORM_CLASS (klass)->transform_ip=GST_DEBUG_FUNCPTR (gst_dmtx_transform_ip);
+GST_BASE_TRANSFORM_CLASS (klass)->start=GST_DEBUG_FUNCPTR (gst_dmtx_start);
+GST_BASE_TRANSFORM_CLASS (klass)->stop=GST_DEBUG_FUNCPTR (gst_dmtx_stop);
 }
 
 static gboolean
 gst_dmtx_set_caps (GstBaseTransform * btrans, GstCaps * incaps, GstCaps * outcaps)
 {
-  Gstdmtx *filter;
-  GstStructure *structure;
-  gboolean ret;
-  gint w, h, depth, bpp;
+Gstdmtx *filter;
+GstStructure *structure;
+gboolean ret;
+gint w, h, depth, bpp;
 
-  filter = GST_DMTX (btrans);
-  structure = gst_caps_get_structure (incaps, 0);
+filter=GST_DMTX(btrans);
+structure=gst_caps_get_structure(incaps, 0);
 
-  ret = gst_structure_get_int (structure, "width", &w);
-  ret &= gst_structure_get_int (structure, "height", &h);
-  ret &= gst_structure_get_int (structure, "depth", &depth);
-  ret &= gst_structure_get_int (structure, "bpp", &bpp);
+ret=gst_structure_get_int(structure, "width", &w);
+ret&=gst_structure_get_int(structure, "height", &h);
+ret&=gst_structure_get_int(structure, "depth", &depth);
+ret&=gst_structure_get_int(structure, "bpp", &bpp);
 
-  if (!ret)
+if (!ret)
 	return FALSE;
 
-  filter->width=w;
-  filter->height=h;
-  filter->bpp=bpp;
+filter->width=w;
+filter->height=h;
+filter->bpp=bpp;
 
-  switch (filter->bpp) {
-  case 8:
+switch (filter->bpp) {
+case 8:
 	filter->dpo=DmtxPack8bppK;
-  break;
-  case 16:
+break;
+case 16:
 	filter->dpo=DmtxPack16bppRGB;
-  break;
-  case 24:
+break;
+case 24:
 	filter->dpo=DmtxPack24bppRGB;
-  break;
-  case 32:
+break;
+case 32:
 	filter->dpo=DmtxPack32bppRGBX;
-  break;
-  default:
+break;
+default:
 	return FALSE;
-  break;
-  }
+break;
+}
 
-  g_debug("BPP: %d", filter->bpp);
+g_debug("BPP: %d", filter->bpp);
 
-  return TRUE;
+return TRUE;
 }
 
 /* initialize the new element
@@ -243,20 +233,20 @@ gst_dmtx_set_caps (GstBaseTransform * btrans, GstCaps * incaps, GstCaps * outcap
 static void
 gst_dmtx_init (Gstdmtx *filter, GstdmtxClass * klass)
 {
-  filter->silent=FALSE;
-  filter->width=0;
-  filter->height=0;
-  filter->scale=1;
-  filter->timeout=100;
-  filter->stop_after=0;
-  filter->found_count=0;
-  filter->skip=15;
-  filter->last=NULL;
+filter->silent=FALSE;
+filter->width=0;
+filter->height=0;
+filter->scale=1;
+filter->timeout=100;
+filter->stop_after=0;
+filter->found_count=0;
+filter->skip=15;
+filter->last=NULL;
 }
 
 static gboolean gst_dmtx_start (GstBaseTransform *base)
 {
-Gstdmtx *filter = GST_DMTX(base);
+Gstdmtx *filter=GST_DMTX(base);
 
 g_debug("START");
 
@@ -265,7 +255,7 @@ return TRUE;
 
 static gboolean gst_dmtx_stop (GstBaseTransform *base)
 {
-Gstdmtx *filter = GST_DMTX(base);
+Gstdmtx *filter=GST_DMTX(base);
 
 g_debug("STOP");
 
@@ -273,65 +263,63 @@ return TRUE;
 }
 
 static void
-gst_dmtx_set_property (GObject * object, guint prop_id,
-    const GValue * value, GParamSpec * pspec)
+gst_dmtx_set_property (GObject * object, guint prop_id, const GValue * value, GParamSpec * pspec)
 {
-  Gstdmtx *filter = GST_DMTX (object);
+Gstdmtx *filter=GST_DMTX (object);
 
-  switch (prop_id) {
-    case PROP_SKIP_DUPS:
-      filter->skip_dups = g_value_get_boolean (value);
-    break;
-    case PROP_SILENT:
-      filter->silent = g_value_get_boolean (value);
-    break;
-    case PROP_SCALE:
-      filter->scale = g_value_get_int (value);
-    break;
-    case PROP_TIMEOUT:
-      filter->timeout = g_value_get_int (value);
-    break;
-    case PROP_STOP_AFTER:
-      filter->stop_after = g_value_get_int (value);
-    break;
-    case PROP_SKIP:
-      filter->skip = g_value_get_int (value);
-    break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-    break;
-  }
+switch (prop_id) {
+	case PROP_SKIP_DUPS:
+		filter->skip_dups=g_value_get_boolean (value);
+	break;
+	case PROP_SILENT:
+		filter->silent=g_value_get_boolean (value);
+	break;
+	case PROP_SCALE:
+		filter->scale=g_value_get_int (value);
+	break;
+	case PROP_TIMEOUT:
+		filter->timeout=g_value_get_int (value);
+	break;
+	case PROP_STOP_AFTER:
+		filter->stop_after=g_value_get_int (value);
+	break;
+	case PROP_SKIP:
+		filter->skip=g_value_get_int (value);
+	break;
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+	break;
+}
 }
 
 static void
-gst_dmtx_get_property (GObject * object, guint prop_id,
-    GValue * value, GParamSpec * pspec)
+gst_dmtx_get_property (GObject * object, guint prop_id, GValue * value, GParamSpec * pspec)
 {
-  Gstdmtx *filter = GST_DMTX (object);
+Gstdmtx *filter=GST_DMTX (object);
 
-  switch (prop_id) {
-    case PROP_SKIP_DUPS:
-      g_value_set_boolean (value, filter->skip_dups);
-    break;
-    case PROP_SILENT:
-      g_value_set_boolean (value, filter->silent);
-    break;
-    case PROP_SCALE:
-      g_value_set_int (value, filter->scale);
-    break;
-    case PROP_TIMEOUT:
-      g_value_set_int (value, filter->timeout);
-    break;
-    case PROP_STOP_AFTER:
-      g_value_set_int (value, filter->stop_after);
-    break;
-    case PROP_SKIP:
-      g_value_set_int (value, filter->skip);
-    break;
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-    break;
-  }
+switch (prop_id) {
+	case PROP_SKIP_DUPS:
+		g_value_set_boolean (value, filter->skip_dups);
+	break;
+	case PROP_SILENT:
+		g_value_set_boolean (value, filter->silent);
+	break;
+	case PROP_SCALE:
+		g_value_set_int (value, filter->scale);
+	break;
+	case PROP_TIMEOUT:
+		g_value_set_int (value, filter->timeout);
+	break;
+	case PROP_STOP_AFTER:
+		g_value_set_int (value, filter->stop_after);
+	break;
+	case PROP_SKIP:
+		g_value_set_int (value, filter->skip);
+	break;
+	default:
+		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+	break;
+}
 }
 
 inline GstMessage *
@@ -343,12 +331,14 @@ GString *tmp;
 tmp=g_string_new_len(msg->output, msg->outputSize);
 if (filter->skip_dups && g_strcmp0(msg->output, filter->last)==0)
 	return NULL;
+
 filter->last=g_string_free(tmp, FALSE);
 s=gst_structure_new ("barcode", 
 	"timestamp", G_TYPE_UINT64, GST_BUFFER_TIMESTAMP (outbuf),
 	"type", G_TYPE_STRING, "datamatrix",
 	"symbol", G_TYPE_STRING, filter->last, 
 	NULL);
+
 return gst_message_new_element(GST_OBJECT(filter), s);
 }
 
@@ -359,25 +349,26 @@ return gst_message_new_element(GST_OBJECT(filter), s);
 static GstFlowReturn
 gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
 {
-  Gstdmtx *filter = GST_DMTX (base);
+Gstdmtx *filter=GST_DMTX (base);
 
-  if (filter->skip>0 && (outbuf->offset % filter->skip)!=0)
+if (filter->skip>0 && (outbuf->offset % filter->skip)!=0)
 	return GST_FLOW_OK;
   
-  /* Find and decode barcodes from video frame */
-  if (filter->timeout>0)
+/* Find and decode barcodes from video frame */
+if (filter->timeout>0)
 	dmtxTimeAdd(dmtxTimeNow(), filter->timeout);
-  else
+else
 	dmtxTimeAdd(dmtxTimeNow(), 100);
 
-  filter->dimg = dmtxImageCreate(GST_BUFFER_DATA(outbuf), filter->width, filter->height, filter->dpo);
-  filter->ddec = dmtxDecodeCreate(filter->dimg, filter->scale);
-  filter->dreg = dmtxRegionFindNext(filter->ddec, NULL);
-  if(filter->dreg != NULL) {
+filter->dimg=dmtxImageCreate(GST_BUFFER_DATA(outbuf), filter->width, filter->height, filter->dpo);
+filter->ddec=dmtxDecodeCreate(filter->dimg, filter->scale);
+filter->dreg=dmtxRegionFindNext(filter->ddec, NULL);
+
+if (filter->dreg!=NULL) {
 	DmtxMessage *msg;
 	GstMessage *m;
 
-	msg = dmtxDecodeMatrixRegion(filter->ddec, filter->dreg, DmtxUndefined);
+	msg=dmtxDecodeMatrixRegion(filter->ddec, filter->dreg, DmtxUndefined);
 	if(msg != NULL) {
 #if 0
 		fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
@@ -393,12 +384,12 @@ gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
 		dmtxMessageDestroy(&msg);
 	}
 	dmtxRegionDestroy(&filter->dreg);
-  }
+}
 
-  dmtxDecodeDestroy(&filter->ddec);
-  dmtxImageDestroy(&filter->dimg);
+dmtxDecodeDestroy(&filter->ddec);
+dmtxImageDestroy(&filter->dimg);
 
-  return GST_FLOW_OK;
+return GST_FLOW_OK;
 }
 
 
@@ -409,20 +400,20 @@ gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
 static gboolean
 dmtx_init (GstPlugin * dmtx)
 {
-  return gst_element_register (dmtx, "dmtx", GST_RANK_NONE, GST_TYPE_DMTX);
+return gst_element_register (dmtx, "dmtx", GST_RANK_NONE, GST_TYPE_DMTX);
 }
 
 /* gstreamer looks for this structure to register dmtxs
  *
  */
 GST_PLUGIN_DEFINE (
-    GST_VERSION_MAJOR,
-    GST_VERSION_MINOR,
-    "dmtx",
-    "Data Matrix barcodes decoder element",
-    dmtx_init,
-    VERSION,
-    "LGPL",
-    "GStreamer",
-    "http://gstreamer.net/"
+	GST_VERSION_MAJOR,
+	GST_VERSION_MINOR,
+	"dmtx",
+	"Data Matrix barcodes decoder element",
+	dmtx_init,
+	VERSION,
+	"LGPL",
+	"GStreamer",
+	"http://gstreamer.net/"
 )
