@@ -269,22 +269,34 @@ Gstdmtx *filter=GST_DMTX (object);
 
 switch (prop_id) {
 	case PROP_SKIP_DUPS:
+		GST_OBJECT_LOCK(object);
 		filter->skip_dups=g_value_get_boolean (value);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_SILENT:
+		GST_OBJECT_LOCK(object);
 		filter->silent=g_value_get_boolean (value);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_SCALE:
+		GST_OBJECT_LOCK(object);
 		filter->scale=g_value_get_int (value);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_TIMEOUT:
+		GST_OBJECT_LOCK(object);
 		filter->timeout=g_value_get_int (value);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_STOP_AFTER:
+		GST_OBJECT_LOCK(object);
 		filter->stop_after=g_value_get_int (value);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_SKIP:
+		GST_OBJECT_LOCK(object);
 		filter->skip=g_value_get_int (value);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -299,22 +311,33 @@ Gstdmtx *filter=GST_DMTX (object);
 
 switch (prop_id) {
 	case PROP_SKIP_DUPS:
+		GST_OBJECT_LOCK(object);
 		g_value_set_boolean (value, filter->skip_dups);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_SILENT:
+		GST_OBJECT_LOCK(object);
 		g_value_set_boolean (value, filter->silent);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_SCALE:
+		GST_OBJECT_LOCK(object);
 		g_value_set_int (value, filter->scale);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_TIMEOUT:
 		g_value_set_int (value, filter->timeout);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_STOP_AFTER:
+		GST_OBJECT_LOCK(object);
 		g_value_set_int (value, filter->stop_after);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_SKIP:
+		GST_OBJECT_LOCK(object);
 		g_value_set_int (value, filter->skip);
+		GST_OBJECT_UNLOCK(object);
 	break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
