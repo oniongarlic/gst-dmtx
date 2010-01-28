@@ -23,6 +23,9 @@
  * SECTION:element-dmtx
  *
  * Dmtx scans image buffers for data matrix barcodes, and sends a message if one is found.
+ * If the skip property is set to 0, every buffer will be examined, if skip is larger than 0, 
+ * then buffers will be pushed to a worker thread (and only if the worker is not busy) so that
+ * the pipeline won't stall.
  *
  * The element generate messages named
  * <classname>&quot;barcode&quot;</classname>. The structure containes these
@@ -133,6 +136,8 @@ static gboolean gst_dmtx_set_caps (GstBaseTransform * btrans, GstCaps * incaps, 
 static GstFlowReturn gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf);
 static gboolean gst_dmtx_start (GstBaseTransform * base);
 static gboolean gst_dmtx_stop (GstBaseTransform * base);
+static gboolean gst_dmtx_src_event (GstBaseTransform *trans, GstEvent *event);
+static gpointer gst_dmtx_worker_thread(gpointer data);
 
 /* GObject vmethod implementations */
 
@@ -179,6 +184,7 @@ GST_BASE_TRANSFORM_CLASS (klass)->set_caps=GST_DEBUG_FUNCPTR (gst_dmtx_set_caps)
 GST_BASE_TRANSFORM_CLASS (klass)->transform_ip=GST_DEBUG_FUNCPTR (gst_dmtx_transform_ip);
 GST_BASE_TRANSFORM_CLASS (klass)->start=GST_DEBUG_FUNCPTR (gst_dmtx_start);
 GST_BASE_TRANSFORM_CLASS (klass)->stop=GST_DEBUG_FUNCPTR (gst_dmtx_stop);
+GST_BASE_TRANSFORM_CLASS (klass)->src_event=GST_DEBUG_FUNCPTR (gst_dmtx_src_event);
 }
 
 static gboolean
@@ -222,8 +228,6 @@ default:
 break;
 }
 
-g_debug("BPP: %d", filter->bpp);
-
 return TRUE;
 }
 
@@ -242,22 +246,61 @@ filter->stop_after=0;
 filter->found_count=0;
 filter->skip=15;
 filter->last=NULL;
+filter->request_queue=NULL;
+filter->thread=NULL;
+filter->keep_running=FALSE;
 }
 
-static gboolean gst_dmtx_start (GstBaseTransform *base)
+static gboolean
+gst_dmtx_src_event (GstBaseTransform *trans, GstEvent *event)
+{
+return TRUE;
+}
+
+static gboolean
+gst_dmtx_start_thread(Gstdmtx *filter)
+{
+filter->request_queue=g_async_queue_new();
+filter->keep_running=TRUE;
+filter->thread=g_thread_create(gst_dmtx_worker_thread, filter, TRUE, NULL);
+if (!filter->thread) {
+	g_warning("dmtx: thread start failed");
+	return FALSE;
+}
+return TRUE;
+}
+
+static void
+gst_dmtx_stop_thread(Gstdmtx *filter)
+{
+gchar *dummy="s";
+if (filter->thread) {
+	filter->keep_running=FALSE;
+	g_async_queue_push(filter->request_queue, dummy);
+	g_thread_join(filter->thread);
+	filter->thread=NULL;
+}
+if (filter->request_queue) {
+	g_async_queue_unref(filter->request_queue);
+	filter->request_queue=NULL;
+}
+}
+
+static gboolean
+gst_dmtx_start (GstBaseTransform *base)
 {
 Gstdmtx *filter=GST_DMTX(base);
 
-g_debug("START");
+if (filter->skip>0)
+	return gst_dmtx_start_thread(filter);
 
 return TRUE;
 }
 
-static gboolean gst_dmtx_stop (GstBaseTransform *base)
+static gboolean
+gst_dmtx_stop (GstBaseTransform *base)
 {
-Gstdmtx *filter=GST_DMTX(base);
-
-g_debug("STOP");
+gst_dmtx_stop_thread(GST_DMTX(base));
 
 return TRUE;
 }
@@ -265,7 +308,7 @@ return TRUE;
 static void
 gst_dmtx_set_property (GObject * object, guint prop_id, const GValue * value, GParamSpec * pspec)
 {
-Gstdmtx *filter=GST_DMTX (object);
+Gstdmtx *filter=GST_DMTX(object);
 
 switch (prop_id) {
 	case PROP_SKIP_DUPS:
@@ -326,6 +369,7 @@ switch (prop_id) {
 		GST_OBJECT_UNLOCK(object);
 	break;
 	case PROP_TIMEOUT:
+		GST_OBJECT_LOCK(object);
 		g_value_set_int (value, filter->timeout);
 		GST_OBJECT_UNLOCK(object);
 	break;
@@ -367,17 +411,11 @@ return gst_message_new_element(GST_OBJECT(filter), s);
 
 /* GstBaseTransform vmethod implementations */
 
-/* this function does the actual processing
- */
 static GstFlowReturn
-gst_dmtx_transform_ip (GstBaseTransform * base, GstBuffer * outbuf)
+gst_dmtx_transform_ip_sync(GstBaseTransform *base, GstBuffer *outbuf)
 {
 Gstdmtx *filter=GST_DMTX (base);
 
-if (filter->skip>0 && (outbuf->offset % filter->skip)!=0)
-	return GST_FLOW_OK;
-  
-/* Find and decode barcodes from video frame */
 if (filter->timeout>0)
 	dmtxTimeAdd(dmtxTimeNow(), filter->timeout);
 else
@@ -393,9 +431,6 @@ if (filter->dreg!=NULL) {
 
 	msg=dmtxDecodeMatrixRegion(filter->ddec, filter->dreg, DmtxUndefined);
 	if(msg != NULL) {
-#if 0
-		fwrite(msg->output, sizeof(unsigned char), msg->outputIdx, stdout);
-#endif
 		filter->found_count++;
 		if (!filter->silent) {
 			m=gst_dmtx_message_new(filter, msg, outbuf);
@@ -413,6 +448,83 @@ dmtxDecodeDestroy(&filter->ddec);
 dmtxImageDestroy(&filter->dimg);
 
 return GST_FLOW_OK;
+}
+
+static GstFlowReturn
+gst_dmtx_transform_ip(GstBaseTransform *base, GstBuffer *outbuf)
+{
+Gstdmtx *filter=GST_DMTX (base);
+gint r;
+
+if (filter->skip==0)
+	return gst_dmtx_transform_ip_sync(base, outbuf);
+
+g_return_val_if_fail(filter->thread, GST_FLOW_ERROR);
+g_return_val_if_fail(filter->request_queue, GST_FLOW_ERROR);
+
+/* Push the buffer to the thread if it's waiting for us */
+if (filter->skip>0 && (outbuf->offset % filter->skip)!=0)
+	return GST_FLOW_OK;
+
+r=g_async_queue_length(filter->request_queue);
+if (r<=0) {
+	GstBuffer *buffer=gst_buffer_copy(outbuf);
+	g_async_queue_push(filter->request_queue, buffer);
+}
+
+return GST_FLOW_OK;
+}
+
+static gpointer gst_dmtx_worker_thread(gpointer odata)
+{
+Gstdmtx *filter=(Gstdmtx *)odata;
+gpointer data;
+DmtxMessage *msg;
+GstMessage *m;
+
+g_async_queue_ref(filter->request_queue);
+while (TRUE) {
+	GstBuffer *buffer;
+
+	data=g_async_queue_pop(filter->request_queue);
+	if (filter->keep_running==FALSE)
+		break;
+
+	buffer=(GstBuffer *)data;
+
+	dmtxTimeAdd(dmtxTimeNow(), filter->timeout>0 ? filter->timeout : 100);
+
+	GST_OBJECT_LOCK(GST_OBJECT(filter));
+	filter->dimg=dmtxImageCreate(GST_BUFFER_DATA(buffer), filter->width, filter->height, filter->dpo);
+	filter->ddec=dmtxDecodeCreate(filter->dimg, filter->scale);
+	GST_OBJECT_UNLOCK(GST_OBJECT(filter));
+
+	filter->dreg=dmtxRegionFindNext(filter->ddec, NULL);
+
+	if (filter->dreg!=NULL) {
+		msg=dmtxDecodeMatrixRegion(filter->ddec, filter->dreg, DmtxUndefined);
+		if(msg!=NULL) {
+			filter->found_count++;
+			if (!filter->silent) {
+				m=gst_dmtx_message_new(filter, msg, buffer);
+				if (m) {
+					gst_element_post_message(GST_ELEMENT(filter), m);
+				}
+			}
+			if (filter->stop_after>0 && filter->found_count>=filter->stop_after) {
+				GstBaseTransform *base=GST_BASE_TRANSFORM(filter);
+				gst_pad_push_event(base->srcpad, gst_event_new_eos());
+			}
+			dmtxMessageDestroy(&msg);
+		}
+	}
+	dmtxRegionDestroy(&filter->dreg);
+	dmtxDecodeDestroy(&filter->ddec);
+	dmtxImageDestroy(&filter->dimg);
+	gst_buffer_unref(buffer);
+}
+g_async_queue_unref(filter->request_queue);
+return NULL;
 }
 
 

@@ -57,6 +57,11 @@ struct _Gstdmtx {
   gint skip;
   gchar *last;
 
+  /* Worker thread */
+  GThread *thread;
+  GAsyncQueue *request_queue;
+  gboolean keep_running;
+
   DmtxDecode  *ddec;
   DmtxImage   *dimg;
   DmtxRegion  *dreg;
