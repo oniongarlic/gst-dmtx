@@ -34,6 +34,9 @@ gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
 png)
 gst-launch -m --gst-plugin-path=`pwd`/src/.libs filesrc location=test/test.png ! pngdec ! dmtx skip=0 ! fakesink
 ;;
+png-mosaic)
+gst-launch -m --gst-plugin-path=`pwd`/src/.libs filesrc location=test/test-mosaic.png ! pngdec ! dmtx skip=0 type=1 ! fakesink
+;;
 *)
 echo "Usage: $0 png|video|video-eos"
 ;;

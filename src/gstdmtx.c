@@ -91,6 +91,7 @@ PROP_STOP_AFTER,
 PROP_TIMEOUT,
 PROP_SKIP,
 PROP_SKIP_DUPS,
+PROP_TYPE,
 };
 
 /* the capabilities of the inputs and outputs.
@@ -180,6 +181,8 @@ g_object_class_install_property (gobject_class, PROP_STOP_AFTER, g_param_spec_in
 
 g_object_class_install_property (gobject_class, PROP_SKIP, g_param_spec_int ("skip", "Skip frames", "Use every x frame", 0, 30, 15, G_PARAM_READWRITE));
 
+g_object_class_install_property (gobject_class, PROP_TYPE, g_param_spec_int ("type", "Matrix or Mosiac", "Scan for matrix or mosaic", 0, 1, 0, G_PARAM_READWRITE));
+
 GST_BASE_TRANSFORM_CLASS (klass)->set_caps=GST_DEBUG_FUNCPTR (gst_dmtx_set_caps);
 GST_BASE_TRANSFORM_CLASS (klass)->transform_ip=GST_DEBUG_FUNCPTR (gst_dmtx_transform_ip);
 GST_BASE_TRANSFORM_CLASS (klass)->start=GST_DEBUG_FUNCPTR (gst_dmtx_start);
@@ -249,6 +252,7 @@ filter->last=NULL;
 filter->request_queue=NULL;
 filter->thread=NULL;
 filter->keep_running=FALSE;
+filter->dtype=GST_DMTX_TYPE_MATRIX;
 }
 
 static gboolean
@@ -341,6 +345,11 @@ switch (prop_id) {
 		filter->skip=g_value_get_int (value);
 		GST_OBJECT_UNLOCK(object);
 	break;
+	case PROP_TYPE:
+		GST_OBJECT_LOCK(object);
+		filter->dtype=g_value_get_int (value);
+		GST_OBJECT_UNLOCK(object);
+	break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 	break;
@@ -381,6 +390,11 @@ switch (prop_id) {
 	case PROP_SKIP:
 		GST_OBJECT_LOCK(object);
 		g_value_set_int (value, filter->skip);
+		GST_OBJECT_UNLOCK(object);
+	break;
+	case PROP_TYPE:
+		GST_OBJECT_LOCK(object);
+		g_value_set_int (value, filter->dtype);
 		GST_OBJECT_UNLOCK(object);
 	break;
 	default:
@@ -429,7 +443,11 @@ if (filter->dreg!=NULL) {
 	DmtxMessage *msg;
 	GstMessage *m;
 
-	msg=dmtxDecodeMatrixRegion(filter->ddec, filter->dreg, DmtxUndefined);
+	if (filter->dtype==GST_DMTX_TYPE_MATRIX)
+		msg=dmtxDecodeMatrixRegion(filter->ddec, filter->dreg, DmtxUndefined);
+	else
+		msg=dmtxDecodeMosaicRegion(filter->ddec, filter->dreg, DmtxUndefined);
+
 	if(msg != NULL) {
 		filter->found_count++;
 		if (!filter->silent) {

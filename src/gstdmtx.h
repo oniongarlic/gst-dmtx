@@ -41,36 +41,43 @@ G_BEGIN_DECLS
 #define GST_IS_DMTX_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_TYPE((klass),GST_TYPE_DMTX))
 
+typedef enum {
+	GST_DMTX_TYPE_MATRIX=0,
+	GST_DMTX_TYPE_MOSAIC=1
+} GstDmtxDataType;
+
 typedef struct _Gstdmtx      Gstdmtx;
 typedef struct _GstdmtxClass GstdmtxClass;
 
 struct _Gstdmtx {
-  GstVideoFilter element;
+	GstVideoFilter element;
 
-  /* Private */
-  gboolean silent;
-  gboolean skip_dups;
-  gint scale;
-  gint stop_after;
-  gint timeout;
-  gint found_count;
-  gint skip;
-  gchar *last;
+	/* Private */
+	gboolean silent;
+	gboolean skip_dups;
+	gint scale;
+	gint stop_after;
+	gint timeout;
+	gint found_count;
+	gint skip;
+	gchar *last;
+	GstDmtxDataType dtype;
 
-  /* Worker thread */
-  GThread *thread;
-  GAsyncQueue *request_queue;
-  gboolean keep_running;
+	/* Worker thread */
+	GThread *thread;
+	GAsyncQueue *request_queue;
+	gboolean keep_running;
 
-  DmtxDecode  *ddec;
-  DmtxImage   *dimg;
-  DmtxRegion  *dreg;
-  DmtxPackOrder dpo;
-  gint width, height, stride, bpp;
+	DmtxDecode  *ddec;
+	DmtxImage   *dimg;
+	DmtxRegion  *dreg;
+	DmtxPackOrder dpo;
+	gint width, height, stride, bpp;
+
 };
 
 struct _GstdmtxClass {
-  GstVideoFilterClass parent_class;
+	GstVideoFilterClass parent_class;
 };
 
 GType gst_dmtx_get_type (void);
