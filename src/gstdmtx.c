@@ -416,7 +416,7 @@ if (filter->skip_dups && g_strcmp0(msg->output, filter->last)==0)
 filter->last=g_string_free(tmp, FALSE);
 s=gst_structure_new ("barcode", 
 	"timestamp", G_TYPE_UINT64, GST_BUFFER_TIMESTAMP (outbuf),
-	"type", G_TYPE_STRING, "datamatrix",
+	"type", G_TYPE_STRING, filter->dtype==GST_DMTX_TYPE_MATRIX ? "datamatrix" : "datamosaic",
 	"symbol", G_TYPE_STRING, filter->last, 
 	NULL);
 
