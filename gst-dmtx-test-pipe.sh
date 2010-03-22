@@ -12,6 +12,16 @@ gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
 	v4l2src ! queue ! dmtx scale=2 skip=1 ! \
 	queue ! ffmpegcolorspace ! xvimagesink
 ;;
+video-sg)
+gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
+	v4l2src ! video/x-raw-rgb,width=640,height=480 ! queue ! dmtx scale=2 skip=1 scan-gap=4 ! \
+	queue ! ffmpegcolorspace ! xvimagesink
+;;
+video-r)
+gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
+	v4l2src ! video/x-raw-rgb,width=640,height=480 ! queue ! dmtx scale=2 skip=1 use-region=TRUE region-x-min=100 region-y-min=100 region-y-max=540 region-x-max=380 ! \
+	queue ! ffmpegcolorspace ! xvimagesink
+;;
 video-eos)
 gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
 	v4l2src ! video/x-raw-rgb,width=320,height=240 ! \
