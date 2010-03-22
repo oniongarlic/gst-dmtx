@@ -73,7 +73,9 @@ struct _Gstdmtx {
 	DmtxRegion  *dreg;
 	DmtxPackOrder dpo;
 	gint width, height, stride, bpp;
-
+	gboolean use_region;
+	gint x_min, x_max, y_min, y_max;
+	gint scan_gap;
 };
 
 struct _GstdmtxClass {

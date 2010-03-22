@@ -7,6 +7,11 @@ gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
 	queue ! dmtx scale=1 timeout=50 skip=1 ! \
 	queue ! ffmpegcolorspace ! xvimagesink
 ;;
+video-f)
+gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
+	v4l2src ! queue ! dmtx scale=2 skip=1 ! \
+	queue ! ffmpegcolorspace ! xvimagesink
+;;
 video-eos)
 gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
 	v4l2src ! video/x-raw-rgb,width=320,height=240 ! \

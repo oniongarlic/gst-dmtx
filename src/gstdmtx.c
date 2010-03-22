@@ -92,6 +92,12 @@ PROP_TIMEOUT,
 PROP_SKIP,
 PROP_SKIP_DUPS,
 PROP_TYPE,
+PROP_SCAN_GAP,
+PROP_USE_REGION,
+PROP_REGION_X_MAX,
+PROP_REGION_X_MIN,
+PROP_REGION_Y_MAX,
+PROP_REGION_Y_MIN,
 };
 
 /* the capabilities of the inputs and outputs.
@@ -167,21 +173,28 @@ gobject_class=(GObjectClass *) klass;
 gobject_class->set_property=gst_dmtx_set_property;
 gobject_class->get_property=gst_dmtx_get_property;
 
-g_object_class_install_property (gobject_class, PROP_SILENT,
-g_param_spec_boolean ("silent", "Silent", "Turn of bus messages", FALSE, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_SILENT, g_param_spec_boolean ("silent", "Silent", "Turn of bus messages", FALSE, G_PARAM_READWRITE));
 
-g_object_class_install_property (gobject_class, PROP_SKIP_DUPS,
-g_param_spec_boolean ("skip_dups", "Skip duplicates", "Send message for first match only", FALSE, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_SKIP_DUPS, g_param_spec_boolean ("skip_dups", "Skip duplicates", "Send message for first match only", FALSE, G_PARAM_READWRITE));
 
 g_object_class_install_property (gobject_class, PROP_SCALE, g_param_spec_int ("scale", "Scaling", "Scale input for faster operation", 1, 4, 1, G_PARAM_READWRITE));
 
-g_object_class_install_property (gobject_class, PROP_TIMEOUT, g_param_spec_int ("timeout", "Timeout", "Try this long to find a code in a frame",        10, 5000, 100, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_TIMEOUT, g_param_spec_int ("timeout", "Timeout", "Try this long to find a code in a frame", 10, 5000, 100, G_PARAM_READWRITE));
 
 g_object_class_install_property (gobject_class, PROP_STOP_AFTER, g_param_spec_int ("stop_after", "Stop after", "Send EOS after this many matches, set to 0 to keep going", 0, 500, 0, G_PARAM_READWRITE));
 
 g_object_class_install_property (gobject_class, PROP_SKIP, g_param_spec_int ("skip", "Skip frames", "Use every x frame", 0, 30, 15, G_PARAM_READWRITE));
 
 g_object_class_install_property (gobject_class, PROP_TYPE, g_param_spec_int ("type", "Matrix or Mosiac", "Scan for matrix or mosaic", 0, 1, 0, G_PARAM_READWRITE));
+
+g_object_class_install_property (gobject_class, PROP_SCAN_GAP, g_param_spec_int ("scan-gap", "Scan gap", "Scan gap size", 1, 1, 32, G_PARAM_READWRITE));
+
+g_object_class_install_property (gobject_class, PROP_USE_REGION, g_param_spec_boolean ("use-region", "Use region", "Use region settings", FALSE, G_PARAM_READWRITE));
+
+g_object_class_install_property (gobject_class, PROP_REGION_X_MAX, g_param_spec_int ("region-x-max", "x-max", "Region x max", 640, 1, 8192, G_PARAM_READABLE));
+g_object_class_install_property (gobject_class, PROP_REGION_X_MIN, g_param_spec_int ("region-x-min", "x-min", "Region x min", 0, 1, 8192, G_PARAM_READABLE));
+g_object_class_install_property (gobject_class, PROP_REGION_Y_MAX, g_param_spec_int ("region-y-max", "y-max", "Region y max", 480, 1, 8192, G_PARAM_READABLE));
+g_object_class_install_property (gobject_class, PROP_REGION_Y_MIN, g_param_spec_int ("region-y-min", "y-min", "Region y min", 0, 1, 8192, G_PARAM_READABLE));
 
 GST_BASE_TRANSFORM_CLASS (klass)->set_caps=GST_DEBUG_FUNCPTR (gst_dmtx_set_caps);
 GST_BASE_TRANSFORM_CLASS (klass)->transform_ip=GST_DEBUG_FUNCPTR (gst_dmtx_transform_ip);
@@ -253,6 +266,7 @@ filter->request_queue=NULL;
 filter->thread=NULL;
 filter->keep_running=FALSE;
 filter->dtype=GST_DMTX_TYPE_MATRIX;
+filter->use_region=FALSE;
 }
 
 static gboolean
@@ -350,6 +364,36 @@ switch (prop_id) {
 		filter->dtype=g_value_get_int (value);
 		GST_OBJECT_UNLOCK(object);
 	break;
+	case PROP_SCAN_GAP:
+		GST_OBJECT_LOCK(object);
+		filter->scan_gap=g_value_get_int (value);
+		GST_OBJECT_UNLOCK(object);
+	break;
+	case PROP_USE_REGION:
+		GST_OBJECT_LOCK(object);
+		filter->use_region=g_value_get_boolean (value);
+		GST_OBJECT_UNLOCK(object);
+	break;
+	case PROP_REGION_X_MAX:
+		GST_OBJECT_LOCK(object);
+		filter->x_max=g_value_get_int(value);
+		GST_OBJECT_UNLOCK(object);
+	break;
+	case PROP_REGION_X_MIN:
+		GST_OBJECT_LOCK(object);
+		filter->x_min=g_value_get_int(value);
+		GST_OBJECT_UNLOCK(object);
+	break;
+	case PROP_REGION_Y_MAX:
+		GST_OBJECT_LOCK(object);
+		filter->y_max=g_value_get_int(value);
+		GST_OBJECT_UNLOCK(object);
+	break;
+	case PROP_REGION_Y_MIN:
+		GST_OBJECT_LOCK(object);
+		filter->y_min=g_value_get_int(value);
+		GST_OBJECT_UNLOCK(object);
+	break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 	break;
@@ -397,6 +441,16 @@ switch (prop_id) {
 		g_value_set_int (value, filter->dtype);
 		GST_OBJECT_UNLOCK(object);
 	break;
+	case PROP_SCAN_GAP:
+		GST_OBJECT_LOCK(object);
+		g_value_set_int (value, filter->scan_gap);
+		GST_OBJECT_UNLOCK(object);
+	break;
+	case PROP_USE_REGION:
+		GST_OBJECT_LOCK(object);
+		g_value_set_boolean (value, filter->use_region);
+		GST_OBJECT_UNLOCK(object);
+	break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 	break;
@@ -438,6 +492,16 @@ else
 filter->dimg=dmtxImageCreate(GST_BUFFER_DATA(outbuf), filter->width, filter->height, filter->dpo);
 filter->ddec=dmtxDecodeCreate(filter->dimg, filter->scale);
 filter->dreg=dmtxRegionFindNext(filter->ddec, NULL);
+
+dmtxDecodeSetProp(filter->ddec, DmtxPropScanGap, filter->scan_gap);
+
+if (filter->use_region) {
+	dmtxDecodeSetProp(filter->ddec, DmtxPropXmin, filter->x_min);
+	dmtxDecodeSetProp(filter->ddec, DmtxPropXmax, filter->x_max > filter->width ? filter->width : filter->x_max);
+	dmtxDecodeSetProp(filter->ddec, DmtxPropYmin, filter->y_min);
+	dmtxDecodeSetProp(filter->ddec, DmtxPropYmax, filter->y_max > filter->height ? filter->height : filter->y_max);
+}
+
 
 if (filter->dreg!=NULL) {
 	DmtxMessage *msg;
