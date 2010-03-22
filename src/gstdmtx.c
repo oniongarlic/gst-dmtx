@@ -187,14 +187,14 @@ g_object_class_install_property (gobject_class, PROP_SKIP, g_param_spec_int ("sk
 
 g_object_class_install_property (gobject_class, PROP_TYPE, g_param_spec_int ("type", "Matrix or Mosiac", "Scan for matrix or mosaic", 0, 1, 0, G_PARAM_READWRITE));
 
-g_object_class_install_property (gobject_class, PROP_SCAN_GAP, g_param_spec_int ("scan-gap", "Scan gap", "Scan gap size", 1, 1, 32, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_SCAN_GAP, g_param_spec_int ("scan-gap", "Scan gap", "Scan gap size", 1, 32, 1, G_PARAM_READWRITE));
 
 g_object_class_install_property (gobject_class, PROP_USE_REGION, g_param_spec_boolean ("use-region", "Use region", "Use region settings", FALSE, G_PARAM_READWRITE));
 
-g_object_class_install_property (gobject_class, PROP_REGION_X_MAX, g_param_spec_int ("region-x-max", "x-max", "Region x max", 640, 1, 8192, G_PARAM_READABLE));
-g_object_class_install_property (gobject_class, PROP_REGION_X_MIN, g_param_spec_int ("region-x-min", "x-min", "Region x min", 0, 1, 8192, G_PARAM_READABLE));
-g_object_class_install_property (gobject_class, PROP_REGION_Y_MAX, g_param_spec_int ("region-y-max", "y-max", "Region y max", 480, 1, 8192, G_PARAM_READABLE));
-g_object_class_install_property (gobject_class, PROP_REGION_Y_MIN, g_param_spec_int ("region-y-min", "y-min", "Region y min", 0, 1, 8192, G_PARAM_READABLE));
+g_object_class_install_property (gobject_class, PROP_REGION_X_MAX, g_param_spec_int ("region-x-max", "x-max", "Region x max", 1, 8192, 1, G_PARAM_WRITABLE));
+g_object_class_install_property (gobject_class, PROP_REGION_X_MIN, g_param_spec_int ("region-x-min", "x-min", "Region x min", 0, 8192, 0, G_PARAM_WRITABLE));
+g_object_class_install_property (gobject_class, PROP_REGION_Y_MAX, g_param_spec_int ("region-y-max", "y-max", "Region y max", 1, 8192, 1, G_PARAM_WRITABLE));
+g_object_class_install_property (gobject_class, PROP_REGION_Y_MIN, g_param_spec_int ("region-y-min", "y-min", "Region y min", 0, 8192, 1, G_PARAM_WRITABLE));
 
 GST_BASE_TRANSFORM_CLASS (klass)->set_caps=GST_DEBUG_FUNCPTR (gst_dmtx_set_caps);
 GST_BASE_TRANSFORM_CLASS (klass)->transform_ip=GST_DEBUG_FUNCPTR (gst_dmtx_transform_ip);
