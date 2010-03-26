@@ -3,9 +3,7 @@
 case "$1" in
 video)
 gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
-	v4l2src ! video/x-raw-rgb,width=320,height=240 ! \
-	queue ! dmtx scale=1 timeout=50 skip=1 ! \
-	queue ! ffmpegcolorspace ! xvimagesink
+	v4l2src ! video/x-raw-rgb,width=320,height=240 ! queue ! dmtx scale=1 timeout=50 skip=1 ! queue ! ffmpegcolorspace ! xvimagesink
 ;;
 video-f)
 gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
@@ -14,12 +12,12 @@ gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
 ;;
 video-sg)
 gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
-	v4l2src ! video/x-raw-rgb,width=640,height=480 ! queue ! dmtx scale=2 skip=1 scan-gap=4 ! \
+	v4l2src ! video/x-raw-rgb,width=640,height=480 ! queue ! dmtx scale=1 skip=5 scan-gap=1 timeout=100 ! \
 	queue ! ffmpegcolorspace ! xvimagesink
 ;;
 video-r)
 gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
-	v4l2src ! video/x-raw-rgb,width=640,height=480 ! queue ! dmtx scale=2 skip=1 use-region=TRUE region-x-min=100 region-y-min=100 region-y-max=540 region-x-max=380 ! \
+	v4l2src ! video/x-raw-rgb,width=640,height=480 ! queue ! dmtx scale=1 skip=1 use-region=TRUE region-x-min=100 region-y-min=100 region-y-max=540 region-x-max=380 ! \
 	queue ! ffmpegcolorspace ! xvimagesink
 ;;
 video-eos)
@@ -30,9 +28,9 @@ gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
 ;;
 video-tee)
 gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
-	v4l2src ! ffmpegcolorspace !video/x-raw-rgb,width=320,height=240 ! \
+	v4l2src ! ffmpegcolorspace !video/x-raw-rgb,width=640,height=480 ! \
 	tee name=t ! queue ! ffmpegcolorspace ! \
-	dmtx scale=2 timeout=100 skip=30 skip_dups=TRUE ! fakesink t. ! queue ! ffmpegcolorspace ! xvimagesink
+	dmtx scale=2 timeout=150 skip=1 ! fakesink t. ! queue ! ffmpegcolorspace ! xvimagesink
 ;;
 video-16)
 gst-launch -m --gst-plugin-path=`pwd`/src/.libs \
