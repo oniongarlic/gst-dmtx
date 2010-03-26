@@ -483,15 +483,14 @@ static GstFlowReturn
 gst_dmtx_transform_ip_sync(GstBaseTransform *base, GstBuffer *outbuf)
 {
 Gstdmtx *filter=GST_DMTX (base);
+DmtxTime tm;
 
 if (filter->timeout>0)
-	dmtxTimeAdd(dmtxTimeNow(), filter->timeout);
-else
-	dmtxTimeAdd(dmtxTimeNow(), 100);
+	tm=dmtxTimeAdd(dmtxTimeNow(), filter->timeout);
 
 filter->dimg=dmtxImageCreate(GST_BUFFER_DATA(outbuf), filter->width, filter->height, filter->dpo);
 filter->ddec=dmtxDecodeCreate(filter->dimg, filter->scale);
-filter->dreg=dmtxRegionFindNext(filter->ddec, NULL);
+filter->dreg=dmtxRegionFindNext(filter->ddec, filter->timeout>0 ? &tm : NULL);
 
 dmtxDecodeSetProp(filter->ddec, DmtxPropScanGap, filter->scan_gap);
 
