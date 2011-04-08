@@ -185,7 +185,7 @@ g_object_class_install_property (gobject_class, PROP_STOP_AFTER, g_param_spec_in
 
 g_object_class_install_property (gobject_class, PROP_SKIP, g_param_spec_int ("skip", "Skip frames", "Use every x frame", 0, 30, 15, G_PARAM_READWRITE));
 
-g_object_class_install_property (gobject_class, PROP_TYPE, g_param_spec_int ("type", "Matrix or Mosiac", "Scan for matrix or mosaic", 0, 1, 0, G_PARAM_READWRITE));
+g_object_class_install_property (gobject_class, PROP_TYPE, g_param_spec_int ("type", "Matrix or Mosiac", "Scan for matrix=0 or mosaic=1", 0, 1, 0, G_PARAM_READWRITE));
 
 g_object_class_install_property (gobject_class, PROP_SCAN_GAP, g_param_spec_int ("scan-gap", "Scan gap", "Scan gap size", 1, 32, 1, G_PARAM_READWRITE));
 
@@ -501,7 +501,6 @@ if (filter->use_region) {
 	dmtxDecodeSetProp(filter->ddec, DmtxPropYmax, filter->y_max > filter->height ? filter->height : filter->y_max);
 }
 
-
 if (filter->dreg!=NULL) {
 	DmtxMessage *msg;
 	GstMessage *m;
@@ -556,52 +555,25 @@ if (r<=0) {
 return GST_FLOW_OK;
 }
 
-static gpointer gst_dmtx_worker_thread(gpointer odata)
+static gpointer gst_dmtx_worker_thread(gpointer data)
 {
-Gstdmtx *filter=(Gstdmtx *)odata;
-gpointer data;
-DmtxMessage *msg;
-GstMessage *m;
+GstBaseTransform *base=(GstBaseTransform *)data;
+Gstdmtx *filter=(Gstdmtx *)data;
 
 g_async_queue_ref(filter->request_queue);
 while (TRUE) {
+	gpointer bdata;
 	GstBuffer *buffer;
 
-	data=g_async_queue_pop(filter->request_queue);
+	bdata=g_async_queue_pop(filter->request_queue);
 	if (filter->keep_running==FALSE)
 		break;
 
-	buffer=(GstBuffer *)data;
-
-	dmtxTimeAdd(dmtxTimeNow(), filter->timeout>0 ? filter->timeout : 100);
+	buffer=(GstBuffer *)bdata;
 
 	GST_OBJECT_LOCK(GST_OBJECT(filter));
-	filter->dimg=dmtxImageCreate(GST_BUFFER_DATA(buffer), filter->width, filter->height, filter->dpo);
-	filter->ddec=dmtxDecodeCreate(filter->dimg, filter->scale);
+	gst_dmtx_transform_ip_sync(base, buffer);
 	GST_OBJECT_UNLOCK(GST_OBJECT(filter));
-
-	filter->dreg=dmtxRegionFindNext(filter->ddec, NULL);
-
-	if (filter->dreg!=NULL) {
-		msg=dmtxDecodeMatrixRegion(filter->ddec, filter->dreg, DmtxUndefined);
-		if(msg!=NULL) {
-			filter->found_count++;
-			if (!filter->silent) {
-				m=gst_dmtx_message_new(filter, msg, buffer);
-				if (m) {
-					gst_element_post_message(GST_ELEMENT(filter), m);
-				}
-			}
-			if (filter->stop_after>0 && filter->found_count>=filter->stop_after) {
-				GstBaseTransform *base=GST_BASE_TRANSFORM(filter);
-				gst_pad_push_event(base->srcpad, gst_event_new_eos());
-			}
-			dmtxMessageDestroy(&msg);
-		}
-	}
-	dmtxRegionDestroy(&filter->dreg);
-	dmtxDecodeDestroy(&filter->ddec);
-	dmtxImageDestroy(&filter->dimg);
 	gst_buffer_unref(buffer);
 }
 g_async_queue_unref(filter->request_queue);
