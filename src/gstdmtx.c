@@ -1,7 +1,7 @@
 /*
  * GStreamer
  * Copyright (C) 2006 Stefan Kost <ensonic@users.sf.net>
- * Copyright (C) 2009-2010 Kaj-Michael Lang <milang@tal.org>
+ * Copyright (C) 2009-2011 Kaj-Michael Lang <milang@tal.org>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -149,7 +149,7 @@ static gpointer gst_dmtx_worker_thread(gpointer data);
 /* GObject vmethod implementations */
 
 static void
-gst_dmtx_base_init (gpointer klass)
+gst_dmtx_base_init(gpointer klass)
 {
 GstElementClass *element_class=GST_ELEMENT_CLASS (klass);
 
@@ -165,7 +165,7 @@ gst_element_class_add_pad_template (element_class, gst_static_pad_template_get (
 
 /* initialize the dmtx's class */
 static void
-gst_dmtx_class_init (GstdmtxClass * klass)
+gst_dmtx_class_init(GstdmtxClass * klass)
 {
 GObjectClass *gobject_class;
 
@@ -204,7 +204,7 @@ GST_BASE_TRANSFORM_CLASS (klass)->src_event=GST_DEBUG_FUNCPTR (gst_dmtx_src_even
 }
 
 static gboolean
-gst_dmtx_set_caps (GstBaseTransform * btrans, GstCaps * incaps, GstCaps * outcaps)
+gst_dmtx_set_caps(GstBaseTransform * btrans, GstCaps * incaps, GstCaps * outcaps)
 {
 Gstdmtx *filter;
 GstStructure *structure;
@@ -251,7 +251,7 @@ return TRUE;
  * initialize instance structure
  */
 static void
-gst_dmtx_init (Gstdmtx *filter, GstdmtxClass * klass)
+gst_dmtx_init(Gstdmtx *filter, GstdmtxClass * klass)
 {
 filter->silent=FALSE;
 filter->width=0;
@@ -270,7 +270,7 @@ filter->use_region=FALSE;
 }
 
 static gboolean
-gst_dmtx_src_event (GstBaseTransform *trans, GstEvent *event)
+gst_dmtx_src_event(GstBaseTransform *trans, GstEvent *event)
 {
 return TRUE;
 }
@@ -305,7 +305,7 @@ if (filter->request_queue) {
 }
 
 static gboolean
-gst_dmtx_start (GstBaseTransform *base)
+gst_dmtx_start(GstBaseTransform *base)
 {
 Gstdmtx *filter=GST_DMTX(base);
 
@@ -316,7 +316,7 @@ return TRUE;
 }
 
 static gboolean
-gst_dmtx_stop (GstBaseTransform *base)
+gst_dmtx_stop(GstBaseTransform *base)
 {
 gst_dmtx_stop_thread(GST_DMTX(base));
 
@@ -324,7 +324,7 @@ return TRUE;
 }
 
 static void
-gst_dmtx_set_property (GObject * object, guint prop_id, const GValue * value, GParamSpec * pspec)
+gst_dmtx_set_property(GObject * object, guint prop_id, const GValue * value, GParamSpec * pspec)
 {
 Gstdmtx *filter=GST_DMTX(object);
 
@@ -401,7 +401,7 @@ switch (prop_id) {
 }
 
 static void
-gst_dmtx_get_property (GObject * object, guint prop_id, GValue * value, GParamSpec * pspec)
+gst_dmtx_get_property(GObject * object, guint prop_id, GValue * value, GParamSpec * pspec)
 {
 Gstdmtx *filter=GST_DMTX (object);
 
@@ -458,7 +458,7 @@ switch (prop_id) {
 }
 
 inline GstMessage *
-gst_dmtx_message_new (Gstdmtx *filter, DmtxMessage *msg, GstBuffer *outbuf)
+gst_dmtx_message_new(Gstdmtx *filter, DmtxMessage *msg, GstBuffer *outbuf)
 {
 GstStructure *s;
 GString *tmp;
@@ -530,6 +530,11 @@ dmtxImageDestroy(&filter->dimg);
 return GST_FLOW_OK;
 }
 
+/**
+ * gst_dmtx_transform_ip:
+ *
+ * gstreamer transformation plugin entry point.
+ */
 static GstFlowReturn
 gst_dmtx_transform_ip(GstBaseTransform *base, GstBuffer *outbuf)
 {
@@ -555,7 +560,14 @@ if (r<=0) {
 return GST_FLOW_OK;
 }
 
-static gpointer gst_dmtx_worker_thread(gpointer data)
+/**
+ * gst_dmtx_worker_thread:
+ *
+ * As barcode analysis can be slow and would stall the pipeline we push the buffer to analyze to this helper thread.
+ *
+ */
+static gpointer
+gst_dmtx_worker_thread(gpointer odata)
 {
 GstBaseTransform *base=(GstBaseTransform *)data;
 Gstdmtx *filter=(Gstdmtx *)data;
@@ -586,9 +598,9 @@ return NULL;
  * register the element factories and other features
  */
 static gboolean
-dmtx_init (GstPlugin * dmtx)
+dmtx_init (GstPlugin *dmtx)
 {
-return gst_element_register (dmtx, "dmtx", GST_RANK_NONE, GST_TYPE_DMTX);
+return gst_element_register(dmtx, "dmtx", GST_RANK_NONE, GST_TYPE_DMTX);
 }
 
 /* gstreamer looks for this structure to register dmtxs
