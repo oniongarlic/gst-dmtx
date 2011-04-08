@@ -463,8 +463,8 @@ gst_dmtx_message_new(Gstdmtx *filter, DmtxMessage *msg, GstBuffer *outbuf)
 GstStructure *s;
 GString *tmp;
 
-tmp=g_string_new_len(msg->output, msg->outputSize);
-if (filter->skip_dups && g_strcmp0(msg->output, filter->last)==0)
+tmp=g_string_new_len((const gchar *)msg->output, msg->outputSize);
+if (filter->skip_dups && g_strcmp0((const gchar *)msg->output, filter->last)==0)
 	return NULL;
 
 filter->last=g_string_free(tmp, FALSE);
