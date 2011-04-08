@@ -1,4 +1,4 @@
-AC_INIT
+AC_INIT()
 
 dnl versions of gstreamer and plugins-base
 GST_MAJORMINOR=0.10
@@ -11,8 +11,7 @@ dnl and 2... for a prerelease
 
 dnl when going to/from release please set the nano correctly !
 dnl releases only do Wall, cvs and prerelease does Werror too
-AS_VERSION(gst-dmtx, GST_PLUGIN_VERSION, 0, 10, 4, 0,
-    GST_PLUGIN_CVS="no", GST_PLUGIN_CVS="yes")
+AS_VERSION(gst-dmtx, GST_PLUGIN_VERSION, 0, 10, 4, 0, GST_PLUGIN_CVS="no", GST_PLUGIN_CVS="yes")
 
 dnl AM_MAINTAINER_MODE provides the option to enable maintainer mode
 AM_MAINTAINER_MODE
@@ -21,6 +20,8 @@ AM_INIT_AUTOMAKE($PACKAGE, $VERSION)
 
 dnl make aclocal work in maintainer mode
 AC_SUBST(ACLOCAL_AMFLAGS, "-I m4")
+
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AM_CONFIG_HEADER(config.h)
 
@@ -37,6 +38,16 @@ if test "x$GST_WALL" = "xyes"; then
    if test "x$GST_PLUGIN_CVS" = "xyes"; then
      AS_COMPILER_FLAG(-Werror,GST_ERROR="$GST_ERROR -Werror",GST_ERROR="$GST_ERROR")
    fi
+fi
+
+dnl Debugging options to enable debug macros
+DEBUG_FLAGS=
+AC_ARG_ENABLE(debug,     [  --enable-debug                compile with DEBUG],,enable_debug=no)
+
+if test "x$enable_debug" = "xyes"; then
+    DEBUG_FLAGS="$DEBUG_FLAGS -DDEBUG -g -fno-omit-frame-pointer"
+else
+    DEBUG_FLAGS="$DEBUG_FLAGS -DG_DISABLE_CHECKS -DG_DISABLE_CAST_CHECKS -DG_DISABLE_ASSERT"
 fi
 
 dnl Check for pkgconfig first
