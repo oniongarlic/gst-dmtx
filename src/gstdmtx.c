@@ -567,7 +567,7 @@ return GST_FLOW_OK;
  *
  */
 static gpointer
-gst_dmtx_worker_thread(gpointer odata)
+gst_dmtx_worker_thread(gpointer data)
 {
 GstBaseTransform *base=(GstBaseTransform *)data;
 Gstdmtx *filter=(Gstdmtx *)data;
