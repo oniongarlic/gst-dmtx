@@ -280,7 +280,7 @@ gst_dmtx_start_thread(Gstdmtx *filter)
 {
 filter->request_queue=g_async_queue_new();
 filter->keep_running=TRUE;
-filter->thread=g_thread_create(gst_dmtx_worker_thread, filter, TRUE, NULL);
+filter->thread=g_thread_new("dmtx-worker", gst_dmtx_worker_thread, filter);
 if (!filter->thread) {
 	g_warning("dmtx: thread start failed");
 	return FALSE;
